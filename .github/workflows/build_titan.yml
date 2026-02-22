@@ -12,17 +12,12 @@ jobs:
 
       - name: Select Best Xcode
         run: |
-          # Finds the latest stable Xcode on the 2026 runner
           XCODE_PATH=$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)
-          if [ -z "$XCODE_PATH" ]; then
-            XCODE_PATH="/Applications/Xcode.app"
-          fi
-          echo "Using Xcode at: $XCODE_PATH"
+          if [ -z "$XCODE_PATH" ]; then XCODE_PATH="/Applications/Xcode.app"; fi
           sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
 
       - name: Build MeloNX Binary
         run: |
-          # Building the patched MeloNX with the Titan launcher
           xcodebuild -project *.xcodeproj \
                      -scheme MeloNX \
                      -configuration Release \
@@ -30,13 +25,11 @@ jobs:
                      -derivedDataPath build \
                      CODE_SIGN_IDENTITY="" \
                      CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO \
-                     AD_HOC_CODE_SIGNING_ALLOWED=YES
+                     CODE_SIGNING_ALLOWED=NO
 
-      - name: Package IPA for Titan
+      - name: Package IPA
         run: |
           mkdir -p Payload
-          # Finds the built .app regardless of the specific build folder name
           APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
           cp -r "$APP_PATH" Payload/
           zip -r Titan-MeloNX.ipa Payload
