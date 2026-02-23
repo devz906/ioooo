@@ -16,34 +16,45 @@ jobs:
           if [ -z "$XCODE_PATH" ]; then XCODE_PATH="/Applications/Xcode.app"; fi
           sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
 
-      - name: Locate and Build Project
+      - name: Build Titan-MeloNX
         run: |
-          # Look for the project file anywhere in the repo
+          # 1. Look for the Project file
           PROJ_PATH=$(find . -name "*.xcodeproj" -print -quit)
           
-          if [ -z "$PROJ_PATH" ]; then
-            echo "❌ ERROR: No .xcodeproj found! Check if your MeloNX folder is pushed correctly."
-            ls -R # This will print your whole file tree to the log so we can see what's wrong
-            exit 1
+          if [ -n "$PROJ_PATH" ]; then
+            echo "✅ Found project at: $PROJ_PATH"
+            xcodebuild -project "$PROJ_PATH" \
+                       -scheme MeloNX \
+                       -configuration Release \
+                       -sdk iphoneos \
+                       -derivedDataPath build \
+                       CODE_SIGN_IDENTITY="" \
+                       CODE_SIGNING_REQUIRED=NO \
+                       CODE_SIGNING_ALLOWED=NO
+          else
+            echo "❌ No .xcodeproj found. Attempting to locate Source folder..."
+            # Look for the folder containing MeloNX source
+            SOURCE_DIR=$(find . -name "MeloNX" -type d -maxdepth 2 | head -n 1)
+            echo "Building from source directory: $SOURCE_DIR"
+            
+            # If there's no project, we might need to check if it's a CMake project
+            if [ -f "CMakeLists.txt" ]; then
+               mkdir build && cd build
+               cmake .. -G Xcode
+               PROJ_PATH=$(find . -name "*.xcodeproj" -print -quit)
+               xcodebuild -project "$PROJ_PATH" -scheme MeloNX -configuration Release -sdk iphoneos
+            else
+               echo "FATAL: No build system (Xcode or CMake) detected."
+               ls -R
+               exit 1
+            fi
           fi
-          
-          echo "✅ Found project at: $PROJ_PATH"
-          
-          xcodebuild -project "$PROJ_PATH" \
-                     -scheme MeloNX \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     -derivedDataPath build \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO \
-                     AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: Package IPA
         run: |
           mkdir -p Payload
-          # Find the .app file inside the build folder
-          APP_FOLDER=$(find build/Build/Products/Release-iphoneos -name "*.app" -type d | head -n 1)
+          APP_FOLDER=$(find build -name "*.app" -type d | head -n 1)
+          if [ -z "$APP_FOLDER" ]; then echo "Build failed, no .app found"; exit 1; fi
           cp -r "$APP_FOLDER" Payload/
           zip -r Titan-MeloNX.ipa Payload
           
