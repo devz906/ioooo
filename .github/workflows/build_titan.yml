@@ -16,11 +16,18 @@ jobs:
           if [ -z "$XCODE_PATH" ]; then XCODE_PATH="/Applications/Xcode.app"; fi
           sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
 
-      - name: Build MeloNX Binary
+      - name: Locate and Build Project
         run: |
-          # This command finds the actual .xcodeproj file path automatically
+          # Look for the project file anywhere in the repo
           PROJ_PATH=$(find . -name "*.xcodeproj" -print -quit)
-          echo "Found project at: $PROJ_PATH"
+          
+          if [ -z "$PROJ_PATH" ]; then
+            echo "❌ ERROR: No .xcodeproj found! Check if your MeloNX folder is pushed correctly."
+            ls -R # This will print your whole file tree to the log so we can see what's wrong
+            exit 1
+          fi
+          
+          echo "✅ Found project at: $PROJ_PATH"
           
           xcodebuild -project "$PROJ_PATH" \
                      -scheme MeloNX \
@@ -29,14 +36,15 @@ jobs:
                      -derivedDataPath build \
                      CODE_SIGN_IDENTITY="" \
                      CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO
+                     CODE_SIGNING_ALLOWED=NO \
+                     AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: Package IPA
         run: |
           mkdir -p Payload
-          # Find the built .app folder
-          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
-          cp -r "$APP_PATH" Payload/
+          # Find the .app file inside the build folder
+          APP_FOLDER=$(find build/Build/Products/Release-iphoneos -name "*.app" -type d | head -n 1)
+          cp -r "$APP_FOLDER" Payload/
           zip -r Titan-MeloNX.ipa Payload
           
       - name: Upload Artifact
