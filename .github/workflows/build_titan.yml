@@ -18,7 +18,11 @@ jobs:
 
       - name: Build MeloNX Binary
         run: |
-          xcodebuild -project *.xcodeproj \
+          # This command finds the actual .xcodeproj file path automatically
+          PROJ_PATH=$(find . -name "*.xcodeproj" -print -quit)
+          echo "Found project at: $PROJ_PATH"
+          
+          xcodebuild -project "$PROJ_PATH" \
                      -scheme MeloNX \
                      -configuration Release \
                      -sdk iphoneos \
@@ -30,6 +34,7 @@ jobs:
       - name: Package IPA
         run: |
           mkdir -p Payload
+          # Find the built .app folder
           APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
           cp -r "$APP_PATH" Payload/
           zip -r Titan-MeloNX.ipa Payload
